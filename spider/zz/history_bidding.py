@@ -1,3 +1,4 @@
+import json
 import requests
 
 class History_bidding:
@@ -135,7 +136,7 @@ class History_bidding:
         except Exception as e:
             print('error: ', e)
 
-    def _get_history_list(self, cookie, pinpai_id, xinghao_id, pageNum = 500):
+    def _get_history_list(self, cookie, pinpai_id, xinghao_id, pageNum = 1):
         '''
         获取历史列表
         :param cookie:
@@ -160,9 +161,39 @@ class History_bidding:
 
         try:
             res = requests.get(url, headers=headers)
-            print('历史交易列表:', res.status_code)
-            print('历史交易列表:', res.text)
+            if res.status_code == 200:
+                res = json.loads(res.text)
+                if res['respCode'] == 0:
+                    respData = res['respData']
+                    if len(respData) == 0:
+                        print('---------->>> %s 没有数据了.' % xinghao_id)
+                    else:
+                        print('---------->>> %s, 第 [%s] 页' % (xinghao_id, pageNum))
+                        for item in respData:
+                            activityId      = item['activityId']
+                            productName     = item['productName']
+                            capacity        = item['capacity']
+                            color           = item['color']
+                            oldLevel        = item['oldLevel']
+                            oldLevelDetail  = item['oldLevelDetail']
+                            version         = item['version']
+                            startPrice      = item['startPrice']
+                            dealPrice       = item['dealPrice']
+                            overflowPrice   = item['overflowPrice']
+                            zzItemId        = item['zzItemId']
+                            joinedCount     = item['joinedCount']       # 报名人数
+                            offerTimes      = item['offerTimes']        # 出价次数
 
+                            print('%s/%s/%s/%s, %s, %s, 回收价/起拍价: %s, 成交价: %s, 多卖: %s, %s人报名, %s次出价, %s, %s' % (productName, capacity, color, version, oldLevel, oldLevelDetail, startPrice, dealPrice, overflowPrice, joinedCount, offerTimes, activityId, zzItemId))
+
+                        # 下一页
+                        pageNum += 1
+                        return self._get_history_list(cookie, pinpai_id, xinghao_id, pageNum)
+
+                else:
+                    print('respCode: %s, errorMsg: %s, errMsg: %s' % (res['respCode'], res['errorMsg'], res['errMsg']))
+            else:
+                print('请求失败 status_code: %s' % res.status_code)
 
         except Exception as e:
             print('error: ', e)
@@ -183,15 +214,51 @@ class History_bidding:
             "Accept-Encoding": "gzip, deflate, br"
         }
 
+        qcId = ""; title = ""
         try:
             res = requests.get(url, headers=headers)
-            print('成交机型的SKU及机况详情:', res.status_code)
-            print('成交机型的SKU及机况详情:', res.text)
-
+            if res.status_code == 200:
+                res = json.loads(res.text)
+                if res['respCode'] == 0:
+                    respData = res['respData']
+                    qcId = respData['qcId']
+                    title = respData['title']
+                    print('title: %s, qcId: %s' % (title, qcId))
+                else:
+                    print('respCode: %s, errorMsg: %s, errMsg: %s' % (res['respCode'], res['errorMsg'], res['errMsg']))
+            else:
+                print('请求失败 status_code: %s' % res.status_code)
         except Exception as e:
             print('error: ', e)
+        finally:
+            return qcId, title
 
+    def _get_assess_report(self, cookie, activity_id, qcId):
 
+        url = "https://app.zhuanzhuan.com/zzopen/ypdeal/report?id={}".format(qcId)
+
+        headers = {
+            "Host": "app.zhuanzhuan.com",
+            "Origin": "https://m.zhuanzhuan.com",
+            "Cookie": cookie,
+            "Connection": "keep-alive",
+            "Accept": "application/json, text/plain, */*",
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 58ZhuanZhuan",
+            "Accept-Language": "zh-cn",
+            "Referer": "https://m.zhuanzhuan.com/u/bmmain/auctionroom/{}?channel={}&init_from={}&zzv={}&tt={}".format(activity_id, self.channel, self.init_from, self.zzv, self.tt),
+            "Accept-Encoding": "gzip, deflate, br"
+        }
+
+        try:
+            res = requests.get(url, headers=headers)
+
+            print(res.status_code)
+            print(res.text)
+
+        except Exception as e:
+            pass
+
+        pass
 
 if __name__ == "__main__":
     history_bidding = History_bidding()
@@ -205,6 +272,11 @@ if __name__ == "__main__":
 
     # history_bidding._get_history_list(cookie, pinpai_id, xinghao_id)
 
-    activity_id = "300000000002058323"
-    history_bidding._get_buyer_activity_detail(cookie, activity_id)
+    activity_id = "300000000002044721"
+
+    # qcId = "213305568956252245"
+
+    qcId, title = history_bidding._get_buyer_activity_detail(cookie, activity_id)
+
+    history_bidding._get_assess_report(cookie, activity_id, qcId)
 
